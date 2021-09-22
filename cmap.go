@@ -4,38 +4,21 @@ type UpsertFunc func(exists bool, oldValue interface{}) (newValue interface{})
 
 type RemoveIfFunc func(exists bool, value interface{}) bool
 
-type CMap interface {
-	Set(string, interface{})
-	Get(string) (interface{}, bool)
-	Remove(string) (interface{}, bool)
-	Len() int
-	Keys() []string
-
-	Upsert(string, UpsertFunc) interface{}
-	SetIfAbsent(string, interface{}) bool
-	RemoveIf(string, RemoveIfFunc) bool
-}
-
-// compile check
-var (
-	_ CMap = (*defaultCMap)(nil)
-)
-
-type defaultCMap struct {
+type CMap struct {
 	s *slab
 }
 
-func New(funcs ...cmapOptionFunc) CMap {
+func New(funcs ...cmapOptionFunc) *CMap {
 	opt := newDefaultOption()
 	for _, fn := range funcs {
 		fn(opt)
 	}
-	return &defaultCMap{
+	return &CMap{
 		s: newSlab(opt),
 	}
 }
 
-func (c *defaultCMap) Set(key string, value interface{}) {
+func (c *CMap) Set(key string, value interface{}) {
 	m := c.s.GetShard(key)
 	m.Lock()
 	defer m.Unlock()
@@ -43,7 +26,7 @@ func (c *defaultCMap) Set(key string, value interface{}) {
 	m.Set(key, value)
 }
 
-func (c *defaultCMap) Get(key string) (interface{}, bool) {
+func (c *CMap) Get(key string) (interface{}, bool) {
 	m := c.s.GetShard(key)
 	m.RLock()
 	defer m.RUnlock()
@@ -51,7 +34,7 @@ func (c *defaultCMap) Get(key string) (interface{}, bool) {
 	return m.Get(key)
 }
 
-func (c *defaultCMap) Remove(key string) (interface{}, bool) {
+func (c *CMap) Remove(key string) (interface{}, bool) {
 	m := c.s.GetShard(key)
 	m.Lock()
 	defer m.Unlock()
@@ -59,7 +42,7 @@ func (c *defaultCMap) Remove(key string) (interface{}, bool) {
 	return m.Remove(key)
 }
 
-func (c *defaultCMap) Len() int {
+func (c *CMap) Len() int {
 	count := 0
 	for _, m := range c.s.Shards() {
 		m.RLock()
@@ -69,7 +52,7 @@ func (c *defaultCMap) Len() int {
 	return count
 }
 
-func (c *defaultCMap) Keys() []string {
+func (c *CMap) Keys() []string {
 	shards := c.s.Shards()
 	keys := make([]string, 0, len(shards))
 	for _, m := range shards {
@@ -80,7 +63,7 @@ func (c *defaultCMap) Keys() []string {
 	return keys
 }
 
-func (c *defaultCMap) Upsert(key string, fn UpsertFunc) (newValue interface{}) {
+func (c *CMap) Upsert(key string, fn UpsertFunc) (newValue interface{}) {
 	m := c.s.GetShard(key)
 	m.Lock()
 	defer m.Unlock()
@@ -91,7 +74,7 @@ func (c *defaultCMap) Upsert(key string, fn UpsertFunc) (newValue interface{}) {
 	return
 }
 
-func (c *defaultCMap) SetIfAbsent(key string, value interface{}) (updated bool) {
+func (c *CMap) SetIfAbsent(key string, value interface{}) (updated bool) {
 	m := c.s.GetShard(key)
 	m.Lock()
 	defer m.Unlock()
@@ -103,7 +86,7 @@ func (c *defaultCMap) SetIfAbsent(key string, value interface{}) (updated bool) 
 	return false
 }
 
-func (c *defaultCMap) RemoveIf(key string, fn RemoveIfFunc) (removed bool) {
+func (c *CMap) RemoveIf(key string, fn RemoveIfFunc) (removed bool) {
 	m := c.s.GetShard(key)
 	m.Lock()
 	defer m.Unlock()

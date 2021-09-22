@@ -15,25 +15,25 @@ import (
 func BenchmarkCmapNoParallel(b *testing.B) {
 	rand.Seed(time.Now().UnixNano())
 
-	sequenceSet := func(c CMap, start, end int) {
+	sequenceSet := func(c *CMap, start, end int) {
 		for i := start; i < end; i += 1 {
 			key := strconv.Itoa(i)
 			c.Set(key, key)
 		}
 	}
-	sequenceGet := func(c CMap, start, end int) {
+	sequenceGet := func(c *CMap, start, end int) {
 		for i := start; i < end; i += 1 {
 			key := strconv.Itoa(i)
 			c.Get(key)
 		}
 	}
-	randomSet := func(c CMap, count int) {
+	randomSet := func(c *CMap, count int) {
 		for i := 0; i < count; i += 1 {
 			key := strconv.Itoa(rand.Int())
 			c.Set(key, key)
 		}
 	}
-	randomGet := func(c CMap, count int) {
+	randomGet := func(c *CMap, count int) {
 		for i := 0; i < count; i += 1 {
 			key := strconv.Itoa(rand.Int())
 			c.Get(key)
@@ -81,7 +81,7 @@ func BenchmarkCmapNoParallel(b *testing.B) {
 func BenchmarkCmapParallel(b *testing.B) {
 	rand.Seed(time.Now().UnixNano())
 
-	sequenceSetWG := func(wg *sync.WaitGroup, c CMap, start, end int) {
+	sequenceSetWG := func(wg *sync.WaitGroup, c *CMap, start, end int) {
 		defer wg.Done()
 
 		for i := start; i < end; i += 1 {
@@ -89,7 +89,7 @@ func BenchmarkCmapParallel(b *testing.B) {
 			c.Set(key, key)
 		}
 	}
-	sequenceGetWG := func(wg *sync.WaitGroup, c CMap, start, end int) {
+	sequenceGetWG := func(wg *sync.WaitGroup, c *CMap, start, end int) {
 		defer wg.Done()
 
 		for i := start; i < end; i += 1 {
@@ -98,7 +98,7 @@ func BenchmarkCmapParallel(b *testing.B) {
 		}
 	}
 
-	randomSetWG := func(wg *sync.WaitGroup, c CMap, count int) {
+	randomSetWG := func(wg *sync.WaitGroup, c *CMap, count int) {
 		defer wg.Done()
 
 		for i := 0; i < count; i += 1 {
@@ -106,7 +106,7 @@ func BenchmarkCmapParallel(b *testing.B) {
 			c.Set(key, key)
 		}
 	}
-	randomGetWG := func(wg *sync.WaitGroup, c CMap, count int) {
+	randomGetWG := func(wg *sync.WaitGroup, c *CMap, count int) {
 		defer wg.Done()
 
 		for i := 0; i < count; i += 1 {
@@ -201,12 +201,12 @@ func BenchmarkCompare(b *testing.B) {
 		}
 	}
 
-	randomSetCMap := func(c CMap, keys []string) {
+	randomSetCMap := func(c *CMap, keys []string) {
 		for _, key := range keys {
 			c.Set(key, key)
 		}
 	}
-	randomGetCMap := func(c CMap, keys []string) {
+	randomGetCMap := func(c *CMap, keys []string) {
 		for _, key := range keys {
 			c.Get(key)
 		}
