@@ -1,0 +1,8 @@
+*.swp
+.DS_Store
+
+*.out
+/Halide-Runtime*
+
+_benchmark/include/libyuv/*
+_benchmark/lib/libyuv/*
