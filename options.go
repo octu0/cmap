@@ -2,7 +2,7 @@ package cmap
 
 const (
 	defaultSlabSize      int = 1024
-	defaultCacheCapacity int = 4096
+	defaultCacheCapacity int = 64
 )
 
 type cmapOptionFunc func(*cmapOption)
