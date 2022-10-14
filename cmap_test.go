@@ -2,6 +2,7 @@ package cmap
 
 import (
 	"math/rand"
+	"sort"
 	"strconv"
 	"sync"
 	"testing"
@@ -277,6 +278,113 @@ func BenchmarkCompare(b *testing.B) {
 	})
 }
 
+func BenchmarkKeys(b *testing.B) {
+	rand.Seed(time.Now().UnixNano())
+
+	prepare := func(c *CMap, size int) {
+		for i := 0; i < size; i += 1 {
+			key := strconv.Itoa(i)
+			c.Set(key, key)
+		}
+	}
+	b.Run("Keys(Default)/slab1024/keys10_000", func(tb *testing.B) {
+		c := New(WithSlabSize(1024))
+		prepare(c, 10_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.Keys()
+		}
+	})
+	b.Run("Keys(Default)/slab8192/keys10_000", func(tb *testing.B) {
+		c := New(WithSlabSize(8192))
+		prepare(c, 10_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.Keys()
+		}
+	})
+	b.Run("Keys(Default)/slab8192/keys50_000", func(tb *testing.B) {
+		c := New(WithSlabSize(8192))
+		prepare(c, 50_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.Keys()
+		}
+	})
+	b.Run("Keys(Default)/slab8192/keys800_000", func(tb *testing.B) {
+		c := New(WithSlabSize(8192))
+		prepare(c, 800_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.Keys()
+		}
+	})
+	b.Run("Keys(Default)/slab8192/keys10_000_000", func(tb *testing.B) {
+		c := New(WithSlabSize(8192))
+		prepare(c, 10_000_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.Keys()
+		}
+	})
+	b.Run("KeysParallel/slab1024/keys10_000", func(tb *testing.B) {
+		c := New(WithSlabSize(1024))
+		prepare(c, 10_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.KeysParallel()
+		}
+	})
+	b.Run("KeysParallel/slab8192/keys10_000", func(tb *testing.B) {
+		c := New(WithSlabSize(8192))
+		prepare(c, 10_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.KeysParallel()
+		}
+	})
+	b.Run("KeysParallel/slab8192/keys50_000", func(tb *testing.B) {
+		c := New(WithSlabSize(8192))
+		prepare(c, 50_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.KeysParallel()
+		}
+	})
+	b.Run("KeysParallel/slab8192/keys800_000", func(tb *testing.B) {
+		c := New(WithSlabSize(8192))
+		prepare(c, 800_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.KeysParallel()
+		}
+	})
+	b.Run("KeysParallel/slab8192/keys800_000/256", func(tb *testing.B) {
+		c := New(WithSlabSize(8192), WithGoPoolSize(256))
+		prepare(c, 800_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.KeysParallel()
+		}
+	})
+	b.Run("KeysParallel/slab8192/keys10_000_000", func(tb *testing.B) {
+		c := New(WithSlabSize(8192))
+		prepare(c, 10_000_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.KeysParallel()
+		}
+	})
+	b.Run("KeysParallel/slab8192/keys10_000_000/256", func(tb *testing.B) {
+		c := New(WithSlabSize(8192), WithGoPoolSize(256))
+		prepare(c, 10_000_000)
+		tb.ResetTimer()
+		for i := 0; i < tb.N; i += 1 {
+			_ = c.KeysParallel()
+		}
+	})
+}
+
 func TestCmapSetGetRemove(t *testing.T) {
 	c := New()
 	if _, ok := c.Get("foobar"); ok {
@@ -333,6 +441,9 @@ func TestCmapLenKeys(t *testing.T) {
 	if len(c.Keys()) != 0 {
 		t.Errorf("no keys")
 	}
+	if len(c.KeysParallel()) != 0 {
+		t.Errorf("no keys")
+	}
 
 	size := 1000
 	for i := 0; i < size; i += 1 {
@@ -345,6 +456,9 @@ func TestCmapLenKeys(t *testing.T) {
 	}
 
 	if len(c.Keys()) != size {
+		t.Errorf("%d key set", size)
+	}
+	if len(c.KeysParallel()) != size {
 		t.Errorf("%d key set", size)
 	}
 
@@ -360,6 +474,43 @@ func TestCmapLenKeys(t *testing.T) {
 
 	if len(c.Keys()) != removeSize {
 		t.Errorf("%d key set", removeSize)
+	}
+	if len(c.KeysParallel()) != removeSize {
+		t.Errorf("%d key set", removeSize)
+	}
+}
+
+func TestCmapKeys(t *testing.T) {
+	c := New()
+	c.Set("foo", "bar")
+	c.Set("bar", "baz")
+	c.Set("hello", "workd")
+
+	keys1 := c.Keys()
+	keys2 := c.KeysParallel()
+
+	sort.Strings(keys1)
+	sort.Strings(keys2)
+
+	if keys1[0] != "bar" {
+		t.Errorf("keys1[0] == bar")
+	}
+	if keys2[0] != "bar" {
+		t.Errorf("keys2[0] == bar")
+	}
+
+	if keys1[1] != "foo" {
+		t.Errorf("keys1[0] == foo")
+	}
+	if keys2[1] != "foo" {
+		t.Errorf("keys2[0] == foo")
+	}
+
+	if keys1[2] != "hello" {
+		t.Errorf("keys1[0] == hello")
+	}
+	if keys2[2] != "hello" {
+		t.Errorf("keys2[0] == hello")
 	}
 }
 

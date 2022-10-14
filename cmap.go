@@ -1,21 +1,18 @@
 package cmap
 
+import (
+	"runtime"
+	"sync"
+)
+
 type UpsertFunc func(exists bool, oldValue interface{}) (newValue interface{})
 
 type RemoveIfFunc func(exists bool, value interface{}) bool
 
 type CMap struct {
-	s *slab
-}
-
-func New(funcs ...cmapOptionFunc) *CMap {
-	opt := newDefaultOption()
-	for _, fn := range funcs {
-		fn(opt)
-	}
-	return &CMap{
-		s: newSlab(opt),
-	}
+	opt *cmapOption
+	s   *slab
+	p   *gopool
 }
 
 func (c *CMap) Set(key string, value interface{}) {
@@ -63,6 +60,50 @@ func (c *CMap) Keys() []string {
 	return keys
 }
 
+func (c *CMap) KeysParallel() []string {
+	chKeys := make(chan []string)
+	keys := make(chan []string)
+
+	// read chan keys
+	c.p.Submit(func(ch chan []string, result chan []string) taskFunc {
+		return func() {
+			buf := make([]string, 0, c.opt.slabSize)
+			for {
+				select {
+				case keys, ok := <-ch:
+					if ok != true {
+						result <- buf
+						close(result)
+						return
+					}
+					buf = append(buf, keys...)
+				}
+			}
+		}
+	}(chKeys, keys))
+
+	wg := new(sync.WaitGroup)
+	for _, shard := range c.s.Shards() {
+		wg.Add(1)
+
+		// write chan keys
+		c.p.Submit(func(w *sync.WaitGroup, m Cache, ch chan []string) taskFunc {
+			return func() {
+				defer w.Done()
+
+				m.RLock()
+				defer m.RUnlock()
+
+				ch <- m.Keys()
+			}
+		}(wg, shard, chKeys))
+	}
+	wg.Wait()
+	close(chKeys)
+
+	return <-keys
+}
+
 func (c *CMap) Upsert(key string, fn UpsertFunc) (newValue interface{}) {
 	m := c.s.GetShard(key)
 	m.Lock()
@@ -98,4 +139,20 @@ func (c *CMap) RemoveIf(key string, fn RemoveIfFunc) (removed bool) {
 		return true
 	}
 	return false
+}
+
+func New(funcs ...cmapOptionFunc) *CMap {
+	opt := newDefaultOption()
+	for _, fn := range funcs {
+		fn(opt)
+	}
+	c := &CMap{
+		opt: opt,
+		s:   newSlab(opt),
+		p:   newGopool(opt.gopoolSize),
+	}
+	runtime.SetFinalizer(c, func(me *CMap) {
+		me.p.Close()
+	})
+	return c
 }

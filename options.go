@@ -1,5 +1,9 @@
 package cmap
 
+import (
+	"runtime"
+)
+
 const (
 	defaultSlabSize      int = 1024
 	defaultCacheCapacity int = 64
@@ -11,6 +15,7 @@ type cmapOption struct {
 	slabSize      int
 	cacheCapacity int
 	hashFunc      CMapHashFunc
+	gopoolSize    int
 }
 
 func newDefaultOption() *cmapOption {
@@ -18,6 +23,7 @@ func newDefaultOption() *cmapOption {
 		slabSize:      defaultSlabSize,
 		cacheCapacity: defaultCacheCapacity,
 		hashFunc:      NewXXHashFunc(),
+		gopoolSize:    runtime.NumCPU(),
 	}
 }
 
@@ -36,5 +42,11 @@ func WithCacheCapacity(size int) cmapOptionFunc {
 func WithHashFunc(hashFunc CMapHashFunc) cmapOptionFunc {
 	return func(opt *cmapOption) {
 		opt.hashFunc = hashFunc
+	}
+}
+
+func WithGoPoolSize(size int) cmapOptionFunc {
+	return func(opt *cmapOption) {
+		opt.gopoolSize = size
 	}
 }
