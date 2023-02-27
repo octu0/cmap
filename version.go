@@ -2,5 +2,5 @@ package cmap
 
 const (
 	AppName string = "cmap"
-	Version string = "1.0.1"
+	Version string = "1.0.2"
 )
