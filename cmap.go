@@ -1,5 +1,7 @@
 package cmap
 
+type GetFunc func(exists bool, value interface{}) (processedValue interface{})
+
 type UpsertFunc func(exists bool, oldValue interface{}) (newValue interface{})
 
 type RemoveIfFunc func(exists bool, value interface{}) bool
@@ -32,6 +34,15 @@ func (c *CMap) Get(key string) (interface{}, bool) {
 	defer m.RUnlock()
 
 	return m.Get(key)
+}
+
+func (c *CMap) GetRLocked(key string, fn GetFunc) interface{} {
+	m := c.s.GetShard(key)
+	m.RLock()
+	defer m.RUnlock()
+
+	v, ok := m.Get(key)
+	return fn(ok, v)
 }
 
 func (c *CMap) Remove(key string) (interface{}, bool) {
