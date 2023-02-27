@@ -301,6 +301,20 @@ func TestCmapSetGetRemove(t *testing.T) {
 		}
 	}
 
+	if v := c.GetRLocked("foobar", func(ok bool, v interface{}) interface{} {
+		return len(v.(string))
+	}); v == nil {
+		t.Errorf("foobar exists")
+	} else {
+		if s, ok := v.(int); ok != true {
+			t.Errorf("foobar is int")
+		} else {
+			if s != 6 {
+				t.Errorf("value is len(123456)")
+			}
+		}
+	}
+
 	if old, ok := c.Remove("foobar"); ok != true {
 		t.Errorf("foobar exists")
 	} else {
@@ -314,6 +328,11 @@ func TestCmapSetGetRemove(t *testing.T) {
 	}
 
 	if _, ok := c.Get("foobar"); ok {
+		t.Errorf("foobar removed")
+	}
+	if ok := c.GetRLocked("foobar", func(ok bool, v interface{}) interface{} {
+		return ok
+	}); ok.(bool) {
 		t.Errorf("foobar removed")
 	}
 	if _, ok := c.Remove("foobar"); ok {
