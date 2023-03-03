@@ -482,6 +482,81 @@ func TestCmapSetIfAbsent(t *testing.T) {
 	})
 }
 
+func TestCmapSetIf(t *testing.T) {
+	t.Run("notexists/noset", func(tt *testing.T) {
+		c := New()
+
+		c.SetIf("foo", func(exists bool, oldValue interface{}) (interface{}, bool) {
+			if exists {
+				tt.Errorf("key foo must not exists")
+			}
+			return "noset-testdata", false
+		})
+		if _, ok := c.Get("foo"); ok {
+			tt.Errorf("must no set foo")
+		}
+	})
+	t.Run("notexists/set", func(tt *testing.T) {
+		c := New()
+
+		c.SetIf("foo", func(exists bool, oldValue interface{}) (interface{}, bool) {
+			if exists {
+				tt.Errorf("key foo must not exists")
+			}
+			return "new-value", true
+		})
+		if v, ok := c.Get("foo"); ok != true {
+			tt.Errorf("must foo exists")
+		} else {
+			if v.(string) != "new-value" {
+				tt.Errorf("updated new-value")
+			}
+		}
+	})
+	t.Run("exists/noset", func(tt *testing.T) {
+		c := New()
+		c.Set("foo", "bar")
+
+		c.SetIf("foo", func(exists bool, oldValue interface{}) (interface{}, bool) {
+			if exists != true {
+				tt.Errorf("foo is exists")
+			}
+			if oldValue.(string) != "bar" {
+				tt.Errorf("old value is bar")
+			}
+			return "noset-testdata", false
+		})
+		if v, ok := c.Get("foo"); ok != true {
+			tt.Errorf("foo is exists")
+		} else {
+			if v.(string) != "bar" {
+				tt.Errorf("not updated")
+			}
+		}
+	})
+	t.Run("exists/set", func(tt *testing.T) {
+		c := New()
+		c.Set("foo", "bar")
+
+		c.SetIf("foo", func(exists bool, oldValue interface{}) (interface{}, bool) {
+			if exists != true {
+				tt.Errorf("foo is exists")
+			}
+			if oldValue.(string) != "bar" {
+				tt.Errorf("old value is bar")
+			}
+			return "new-value", true
+		})
+		if v, ok := c.Get("foo"); ok != true {
+			tt.Errorf("foo is exists")
+		} else {
+			if v.(string) != "new-value" {
+				tt.Errorf("updated new-value")
+			}
+		}
+	})
+}
+
 func TestCmapRemoveIf(t *testing.T) {
 	t.Run("exists/remove", func(tt *testing.T) {
 		c := New()
