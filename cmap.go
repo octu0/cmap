@@ -4,6 +4,8 @@ type GetFunc func(exists bool, value interface{}) (processedValue interface{})
 
 type UpsertFunc func(exists bool, oldValue interface{}) (newValue interface{})
 
+type SetIfFunc func(exists bool, value interface{}) (newValue interface{}, isSetValue bool)
+
 type RemoveIfFunc func(exists bool, value interface{}) bool
 
 type CMap struct {
@@ -95,6 +97,18 @@ func (c *CMap) SetIfAbsent(key string, value interface{}) (updated bool) {
 		return true
 	}
 	return false
+}
+
+func (c *CMap) SetIf(key string, fn SetIfFunc) {
+	m := c.s.GetShard(key)
+	m.Lock()
+	defer m.Unlock()
+
+	v, ok := m.Get(key)
+	setValue, isSet := fn(ok, v)
+	if isSet {
+		m.Set(key, setValue)
+	}
 }
 
 func (c *CMap) RemoveIf(key string, fn RemoveIfFunc) (removed bool) {
